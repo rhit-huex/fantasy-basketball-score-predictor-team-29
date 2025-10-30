@@ -84,27 +84,11 @@ def predict_next_game(model, player_gw_df, seq_length=5, feature_cols=[
 
 if __name__ == "__main__":
     # For testing purposes, if this file is run standalone, generate dummy data
-    df, _, _, _, _ = preprocess_data()  # Assuming this function exists in data_preprocessing.py
+    df, X, Y = preprocess_data()  # Assuming this function exists in data_preprocessing.py
 
-    df.shape
+    print(df.shape)
 
     X_dummy = np.random.rand(100, 5, 14)  # 100 samples, sequence length of 5 games, 14 features
     y_dummy = np.random.rand(100)
     
-    # Create dummy DataFrame for prediction testing
-    feature_cols = ['MIN','FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','AST','STL','BLK','TOV','PTS']
-    X = df[feature_cols + ['Player_ID', 'GAME_DATE']]
-    Y = df['fantasy_points_dk'].values
-    
     model, history = train_model(X, Y, epochs=10)
-    
-    dummy_data = {
-        'Player_ID': [1]*10 + [2]*10,
-        'GAME_DATE': pd.date_range('2024-01-01', periods=20),
-    }
-    for col in feature_cols:
-        dummy_data[col] = np.random.rand(20)
-    
-    dummy_df = pd.DataFrame(dummy_data)
-    preds = predict_next_game(model, dummy_df)
-    print(preds)

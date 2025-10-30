@@ -1,10 +1,14 @@
 # Parse, sort, and clean data
+from typing import Optional, Tuple
 import pandas as pd, re
 import numpy as np
 
 def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv"):
+    # Load data
     df = pd.read_csv(location)
-    df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"], format="%d-%b-%y")
+    
+    # Parse dates and sort
+    df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"], format="%b %d, %Y")
     df = df.sort_values(["Player_ID","GAME_DATE"]).reset_index(drop=True)
 
     # Parse opponent team and home/away status
@@ -21,10 +25,10 @@ def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv"):
     # Pick sequence features and targets
     seq_cols = [
         "MIN","FGM","FGA","FG3M","FG3A","FTM","FTA",
-        "REB","AST","STL","BLK","TOV","PTS","home"
+        "OREB", "DREB","AST","STL","BLK","TOV","PTS","home"
     ]
     target_col = "fantasy_points_dk"
-    df = df.dropna(subset=[target_col]).copy()
+    df = df.dropna(subset=[target_col])
 
     # Make integer ID for embeddings
     player2idx = {pid:i for i,pid in enumerate(df["Player_ID"].unique())}
@@ -34,6 +38,39 @@ def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv"):
     df["player_idx"] = df["Player_ID"].map(player2idx)
     df["team_idx"]   = df["TEAM_ABBR"].map(team2idx).fillna(0).astype(int)
     df["opp_idx"]    = df["OPP_ABBR"].map(team2idx).fillna(0).astype(int)
-    
-    return df, player2idx, team2idx, seq_cols, target_col
 
+    # Clean up dataframe
+    df = df[seq_cols + [target_col, "Player_ID", "team_idx", "opp_idx", "GAME_DATE"]]
+
+    X, Y = create_sequences(df, seq_length=5, feature_cols=seq_cols, target_col=target_col)
+    
+    return df, X, Y
+
+
+def create_sequences(df: pd.DataFrame, seq_length: int = 5, 
+                     feature_cols: list = ['minutes', 'goals', 'assists'], 
+                     target_col: str = 'points') -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    """
+    Creates sliding-window sequences from player gameweek data.
+    Each sequence (shape [seq_length, num_features]) is paired with the target value from the next gameweek.
+    """
+    sequences = []
+    targets = []
+    if df is None:
+        return None, None
+    if 'GAME_DATE' not in df.columns:
+        print("Column 'GAME_DATE' not found in player game data. Cannot create sequences.")
+        return None, None
+    df = df.sort_values(['Player_ID', 'GAME_DATE'])
+    for player in df['Player_ID'].unique():
+        player_data = df[df['Player_ID'] == player].reset_index(drop=True)
+        if len(player_data) <= seq_length:
+            continue
+        data_array = player_data[feature_cols].values
+        target_array = player_data[target_col].values
+        for i in range(len(player_data) - seq_length):
+            sequences.append(data_array[i:i+seq_length])
+            targets.append(target_array[i+seq_length])
+    return np.array(sequences), np.array(targets)
+
+preprocess_data()
