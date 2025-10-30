@@ -34,4 +34,6 @@ def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv"):
     df["player_idx"] = df["Player_ID"].map(player2idx)
     df["team_idx"]   = df["TEAM_ABBR"].map(team2idx).fillna(0).astype(int)
     df["opp_idx"]    = df["OPP_ABBR"].map(team2idx).fillna(0).astype(int)
+    
+    return df, player2idx, team2idx, seq_cols, target_col
 
