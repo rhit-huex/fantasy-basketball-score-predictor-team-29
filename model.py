@@ -43,7 +43,7 @@ def train_model(X, y, epochs=50, batch_size=32, validation_split=0.2):
     loss, mae = model.evaluate(X_test, y_test, verbose=0)
     print("Test Loss: {:.4f}, Test MAE: {:.4f}".format(loss, mae))
     
-    # Optionally, perform K-Fold cross validation
+    # Perform K-Fold cross validation
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
     cv_losses = []
     cv_maes = []
@@ -55,6 +55,7 @@ def train_model(X, y, epochs=50, batch_size=32, validation_split=0.2):
         loss_cv, mae_cv = cv_model.evaluate(X_cv_test, y_cv_test, verbose=0)
         cv_losses.append(loss_cv)
         cv_maes.append(mae_cv)
+    
     print("Cross Validation Loss: {:.4f} ± {:.4f}".format(np.mean(cv_losses), np.std(cv_losses)))
     print("Cross Validation MAE: {:.4f} ± {:.4f}".format(np.mean(cv_maes), np.std(cv_maes)))
     
@@ -84,11 +85,5 @@ def predict_next_game(model, player_gw_df, seq_length=5, feature_cols=[
 
 if __name__ == "__main__":
     # For testing purposes, if this file is run standalone, generate dummy data
-    df, X, Y = preprocess_data()  # Assuming this function exists in data_preprocessing.py
-
-    print(df.shape)
-
-    X_dummy = np.random.rand(100, 5, 14)  # 100 samples, sequence length of 5 games, 14 features
-    y_dummy = np.random.rand(100)
-    
+    df, X, Y = preprocess_data()  # Assuming this function exists in data_preprocessing.py    
     model, history = train_model(X, Y, epochs=10)

@@ -19,8 +19,8 @@ def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv"):
     df[["TEAM_ABBR","OPP_ABBR"]] = df["MATCHUP"].apply(parse_matchup).apply(pd.Series)
     df["home"] = df["MATCHUP"].str.contains(r"\bvs\b|\bvs\.", case=False).astype(int)
 
-    # Remove any games with 0 minutes
-    df = df[df["MIN"] > 0].reset_index(drop=True)
+    # # Remove any games with 0 minutes
+    # df = df[df["MIN"] > 0].reset_index(drop=True)
 
     # Pick sequence features and targets
     seq_cols = [
@@ -47,9 +47,9 @@ def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv"):
     return df, X, Y
 
 
-def create_sequences(df: pd.DataFrame, seq_length: int = 5, 
-                     feature_cols: list = ['minutes', 'goals', 'assists'], 
-                     target_col: str = 'points') -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+def create_sequences(df: pd.DataFrame, seq_length: int, 
+                     feature_cols: list, 
+                     target_col: str) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
     """
     Creates sliding-window sequences from player gameweek data.
     Each sequence (shape [seq_length, num_features]) is paired with the target value from the next gameweek.
