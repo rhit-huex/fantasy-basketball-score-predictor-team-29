@@ -7,11 +7,11 @@ def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv"):
     # Load data
     df = pd.read_csv(location)
     
-    # Parse dates and sort
+    # Parse dates and sort -> need to clean to put into model
     df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"], format="%b %d, %Y")
     df = df.sort_values(["Player_ID","GAME_DATE"]).reset_index(drop=True)
 
-    # Parse opponent team and home/away status
+    # Parse opponent team and home/away status 
     def parse_matchup(s):
         parts = re.split(r"\s+@|\s+vs\.?", s)
         return (parts[0].strip(), parts[1].strip()) if len(parts)==2 else (None, None)

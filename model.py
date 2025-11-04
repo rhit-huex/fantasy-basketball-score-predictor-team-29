@@ -7,6 +7,7 @@ from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
 
 from data_preprocessing import preprocess_data
+from nba_api.stats.static import players
 
 def build_model(input_shape):
     model = Sequential()
@@ -44,25 +45,25 @@ def train_model(X, y, epochs=50, batch_size=32, validation_split=0.2):
     print("Test Loss: {:.4f}, Test MAE: {:.4f}".format(loss, mae))
     
     # Perform K-Fold cross validation
-    kf = KFold(n_splits=5, shuffle=True, random_state=42)
-    cv_losses = []
-    cv_maes = []
-    for train_index, test_index in kf.split(X):
-        X_cv_train, X_cv_test = X[train_index], X[test_index]
-        y_cv_train, y_cv_test = y[train_index], y[test_index]
-        cv_model = build_model(input_shape)
-        cv_model.fit(X_cv_train, y_cv_train, epochs=epochs, batch_size=batch_size, validation_split=validation_split, verbose=0)
-        loss_cv, mae_cv = cv_model.evaluate(X_cv_test, y_cv_test, verbose=0)
-        cv_losses.append(loss_cv)
-        cv_maes.append(mae_cv)
+    # kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    # cv_losses = []
+    # cv_maes = []
+    # for train_index, test_index in kf.split(X):
+    #     X_cv_train, X_cv_test = X[train_index], X[test_index]
+    #     y_cv_train, y_cv_test = y[train_index], y[test_index]
+    #     cv_model = build_model(input_shape)
+    #     cv_model.fit(X_cv_train, y_cv_train, epochs=epochs, batch_size=batch_size, validation_split=validation_split, verbose=0)
+    #     loss_cv, mae_cv = cv_model.evaluate(X_cv_test, y_cv_test, verbose=0)
+    #     cv_losses.append(loss_cv)
+    #     cv_maes.append(mae_cv)
     
-    print("Cross Validation Loss: {:.4f} ± {:.4f}".format(np.mean(cv_losses), np.std(cv_losses)))
-    print("Cross Validation MAE: {:.4f} ± {:.4f}".format(np.mean(cv_maes), np.std(cv_maes)))
+    # print("Cross Validation Loss: {:.4f} ± {:.4f}".format(np.mean(cv_losses), np.std(cv_losses)))
+    # print("Cross Validation MAE: {:.4f} ± {:.4f}".format(np.mean(cv_maes), np.std(cv_maes)))
     
     return model, history
 
 def predict_next_game(model, player_gw_df, seq_length=5, feature_cols=[
-    'MIN','FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','AST','STL','BLK','TOV','PTS']):
+    'MIN','FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','AST','STL','BLK','TOV','PTS', 'home']):
     """
     For each player in the aggregated gameweek data, extract the most recent sequence of length 'seq_length'
     and use the trained model to predict the fantasy points for the next gameweek.
@@ -87,3 +88,22 @@ if __name__ == "__main__":
     # For testing purposes, if this file is run standalone, generate dummy data
     df, X, Y = preprocess_data()  # Assuming this function exists in data_preprocessing.py    
     model, history = train_model(X, Y, epochs=10)
+    predictions = predict_next_game(model, df, seq_length=5)
+    
+    # Make infinite loop to predict next game for a player that user inputs the name of
+    while True:
+        player_name = input("Enter player full name (or 'exit' to quit): ")
+        if player_name.lower() == 'exit':
+            break
+        # Find player by their full anme
+        player_dict = players.find_players_by_full_name(player_name)
+        if not player_dict:
+            print("Player not found. Please try again\n")
+            continue
+        # Convert full name to player ID
+        player_id = player_dict[0]['id']
+        if player_id in predictions:
+            print(f"Predicted number of fantasy points next game for {player_name}: {predictions[player_id]:.2f}\n")
+        else:
+            print(f"No prediction available for {player_name}\n")
+        
