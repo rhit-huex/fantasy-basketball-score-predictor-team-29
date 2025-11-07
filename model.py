@@ -84,7 +84,38 @@ def predict_next_game(model, player_gw_df, seq_length=5, feature_cols=[
             predictions[player] = pred[0, 0]
     return predictions
 
-def get_best_lineup(model, player_gw_df, budget=50000, seq_length=5, feature_cols=[
+def predict_player_game(model, player_gw_df, player_id, game_date, seq_length=5, feature_cols=[
+    'MIN','FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','AST','STL','BLK','TOV','PTS', 'home']):
+    """
+    Predict the fantasy points for the next game of a specific player.
+    
+    Args:
+        model: Trained Keras model
+        player_gw_df: pandas DataFrame with player gameweek data including salary
+        player_id: ID of the player to predict
+        game_date: Date for which to make prediction (YYYY-MM-DD)
+        seq_length: Number of previous games to use for prediction
+        feature_cols: List of feature column names
+    """
+    player_data = player_gw_df[player_gw_df['Player_ID'] == player_id].sort_values('GAME_DATE').reset_index(drop=True)
+    
+    if len(player_data) < seq_length:
+        raise ValueError(f"Not enough data to predict for player ID {player_id}")
+    
+    # Get games before the target date
+    historical_data = player_data[player_data['GAME_DATE'] < game_date]
+    
+    if len(historical_data) < seq_length:
+        raise ValueError(f"Not enough historical data before {game_date} for player ID {player_id}. "
+                        f"Need {seq_length} games, but only have {len(historical_data)}")
+    
+    # Get the last seq_length games before game_date
+    seq = historical_data.iloc[-seq_length:][feature_cols].values
+    seq = np.expand_dims(seq, axis=0)  # shape (1, seq_length, num_features)
+    pred = model.predict(seq, verbose=0)
+    return pred[0, 0]
+
+def get_best_lineup(model, player_gw_df, my_players, game_date, budget=50000, seq_length=5, feature_cols=[
     'MIN','FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','AST','STL','BLK','TOV','PTS', 'home'], 
     salary_col='SALARY'):
     """
@@ -95,17 +126,26 @@ def get_best_lineup(model, player_gw_df, budget=50000, seq_length=5, feature_col
         player_gw_df: pandas DataFrame with player gameweek data including salary
         budget: Total budget for the lineup
     """
-    predictions = predict_next_game(model, player_gw_df, seq_length, feature_cols)
+
+    team_predictions = {}
+    for player_id in my_players:
+        player_data = player_gw_df[player_gw_df['Player_ID'] == player_id].sort_values('GAME_DATE').reset_index(drop=True)
+        if len(player_data) < seq_length:
+            raise ValueError(f"Not enough data to predict for player ID {player_id}")
+        team_predictions[player_id] = predict_player_game(model, player_gw_df, player_id=player_id, game_date=game_date, seq_length=seq_length)
+    
     player_salaries = player_gw_df[['Player_ID', salary_col]].drop_duplicates().set_index('Player_ID')
     lineup = []
     total_cost = 0
     total_points = 0
+    
     for player_id, predicted_points in sorted(predictions.items(), key=lambda x: x[1], reverse=True):
         player_salary = player_salaries.loc[player_id][salary_col]
         if total_cost + player_salary <= budget:
             lineup.append((player_id, predicted_points, player_salary))
             total_cost += player_salary
             total_points += predicted_points
+    
     return lineup, total_cost, total_points
 
 
@@ -114,21 +154,23 @@ if __name__ == "__main__":
     df, X, Y = preprocess_data()  # Assuming this function exists in data_preprocessing.py    
     model, history = train_model(X, Y, epochs=10)
     predictions = predict_next_game(model, df, seq_length=5)
+
+    model.save("fantasy_basketball_model.keras")
     
-    # Make infinite loop to predict next game for a player that user inputs the name of
-    while True:
-        player_name = input("Enter player full name (or 'exit' to quit): ")
-        if player_name.lower() == 'exit':
-            break
-        # Find player by their full anme
-        player_dict = players.find_players_by_full_name(player_name)
-        if not player_dict:
-            print("Player not found. Please try again\n")
-            continue
-        # Convert full name to player ID
-        player_id = player_dict[0]['id']
-        if player_id in predictions:
-            print(f"Predicted number of fantasy points next game for {player_name}: {predictions[player_id]:.2f}\n")
-        else:
-            print(f"No prediction available for {player_name}\n")
+    # # Make infinite loop to predict next game for a player that user inputs the name of
+    # while True:
+    #     player_name = input("Enter player full name (or 'exit' to quit): ")
+    #     if player_name.lower() == 'exit':
+    #         break
+    #     # Find player by their full anme
+    #     player_dict = players.find_players_by_full_name(player_name)
+    #     if not player_dict:
+    #         print("Player not found. Please try again\n")
+    #         continue
+    #     # Convert full name to player ID
+    #     player_id = player_dict[0]['id']
+    #     if player_id in predictions:
+    #         print(f"Predicted number of fantasy points next game for {player_name}: {predictions[player_id]:.2f}\n")
+    #     else:
+    #         print(f"No prediction available for {player_name}\n")
         
