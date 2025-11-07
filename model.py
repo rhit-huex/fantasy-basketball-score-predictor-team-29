@@ -84,6 +84,31 @@ def predict_next_game(model, player_gw_df, seq_length=5, feature_cols=[
             predictions[player] = pred[0, 0]
     return predictions
 
+def get_best_lineup(model, player_gw_df, budget=50000, seq_length=5, feature_cols=[
+    'MIN','FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','AST','STL','BLK','TOV','PTS', 'home'], 
+    salary_col='SALARY'):
+    """
+    Predict fantasy points for all players and select the best lineup within the given budget.
+    
+    Args:
+        model: Trained Keras model
+        player_gw_df: pandas DataFrame with player gameweek data including salary
+        budget: Total budget for the lineup
+    """
+    predictions = predict_next_game(model, player_gw_df, seq_length, feature_cols)
+    player_salaries = player_gw_df[['Player_ID', salary_col]].drop_duplicates().set_index('Player_ID')
+    lineup = []
+    total_cost = 0
+    total_points = 0
+    for player_id, predicted_points in sorted(predictions.items(), key=lambda x: x[1], reverse=True):
+        player_salary = player_salaries.loc[player_id][salary_col]
+        if total_cost + player_salary <= budget:
+            lineup.append((player_id, predicted_points, player_salary))
+            total_cost += player_salary
+            total_points += predicted_points
+    return lineup, total_cost, total_points
+
+
 if __name__ == "__main__":
     # For testing purposes, if this file is run standalone, generate dummy data
     df, X, Y = preprocess_data()  # Assuming this function exists in data_preprocessing.py    
