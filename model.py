@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split, KFold
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional
 from tensorflow.keras.callbacks import EarlyStopping
 
 from data_preprocessing import preprocess_data
@@ -12,17 +12,18 @@ from nba_api.stats.static import players
 def build_model(input_shape):
     model = Sequential()
     # LSTM layer with dropout for regularization
-    model.add(LSTM(64, activation='tanh', input_shape=input_shape))
+    model.add(Bidirectional(LSTM(32, activation='relu', input_shape=input_shape)))
+    model.add(Dense(128, activation='relu'))
     model.add(Dropout(0.2)) # Prevent overfitting
-    model.add(Dense(32, activation='relu'))
+    model.add(Dense(64, activation='relu'))
     model.add(Dropout(0.2))
     model.add(Dense(1))  # Predicting a single continuous value (fantasy points)
-    model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])
+    model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae', 'mse'])
     return model
 
 def train_model(X, y, epochs=50, batch_size=32, validation_split=0.2):
     # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=123)
     
     input_shape = (X_train.shape[1], X_train.shape[2])
     model = build_model(input_shape)
@@ -41,8 +42,8 @@ def train_model(X, y, epochs=50, batch_size=32, validation_split=0.2):
     )
     
     # Evaluate the model on test data
-    loss, mae = model.evaluate(X_test, y_test, verbose=0)
-    print("Test Loss: {:.4f}, Test MAE: {:.4f}".format(loss, mae))
+    loss, mae, mse = model.evaluate(X_test, y_test, verbose=0)
+    print("Test Loss: {:.4f}, Test MAE: {:.4f}, Test MSE: {:.4f}, Test RMSE: {:.4f}".format(loss, mae, mse, np.sqrt(mse)))
     
     # Perform K-Fold cross validation
     # kf = KFold(n_splits=5, shuffle=True, random_state=42)
@@ -151,8 +152,8 @@ def get_best_lineup(model, player_gw_df, my_players, game_date, budget=50000, se
 
 if __name__ == "__main__":
     # For testing purposes, if this file is run standalone, generate dummy data
-    df, X, Y = preprocess_data()  # Assuming this function exists in data_preprocessing.py    
-    model, history = train_model(X, Y, epochs=10)
+    df, X, Y = preprocess_data(seq_length=5)  # Assuming this function exists in data_preprocessing.py    
+    model, history = train_model(X, Y, epochs=15, batch_size=16)
     predictions = predict_next_game(model, df, seq_length=5)
 
     model.save("fantasy_basketball_model.keras")

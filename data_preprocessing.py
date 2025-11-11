@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 import pandas as pd, re
 import numpy as np
 
-def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv"):
+def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv", seq_length=5) -> Tuple[Optional[pd.DataFrame], Optional[np.ndarray], Optional[np.ndarray]]:
     # Load data
     df = pd.read_csv(location)
     
@@ -20,7 +20,7 @@ def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv"):
     df["home"] = df["MATCHUP"].str.contains(r"\bvs\b|\bvs\.", case=False).astype(int)
 
     # # Remove any games with 0 minutes
-    # df = df[df["MIN"] > 0].reset_index(drop=True)
+    df = df[df["MIN"] > 0].reset_index(drop=True)
 
     # Pick sequence features and targets
     seq_cols = [
