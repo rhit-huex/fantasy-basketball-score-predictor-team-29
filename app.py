@@ -38,9 +38,7 @@ def gradio_predict(player_name, date_str):
     last_5_games = historical_data.iloc[-SEQ_LENGTH:]
     games_info = "\n".join([f"  {row['GAME_DATE']}: {row['PTS']} pts" for _, row in last_5_games.iterrows()])
     
-    # Predict for specific date using the suggested call signature
     try:
-        # Using your suggested variable names: df, picked_date, SEQ_LENGTH
         picked_date = game_date
         pred = predict_player_game(model, df, player_id, picked_date, seq_length=SEQ_LENGTH)
 
@@ -58,7 +56,7 @@ iface = gr.Interface(
         gr.Dropdown(choices=player_names, label="Select Player"),
         gr.Textbox(label="Game Date (MM/DD/YYYY)", placeholder="03/15/2024")
     ],
-    outputs="text",
+    outputs=gr.Textbox(label="Prediction Result", lines=15, max_lines=25),
     title="NBA Fantasy Points Predictor",
     description="Select an NBA player and enter a date to see the predicted fantasy points based on their last 5 games before that date."
 )
