@@ -9,7 +9,7 @@ from data_preprocessing import preprocess_data
 
 # Load and train (unchanged)
 data, x, y = preprocess_data()
-model, history = train_model(x, y, epochs=20)
+model, history, feature_scaler = train_model(x, y, epochs=20)
 
 # Make names the ones you suggested (so your exact call works)
 SEQ_LENGTH = 5
@@ -40,7 +40,7 @@ def gradio_predict(player_name, date_str):
     
     try:
         picked_date = game_date
-        pred = predict_player_game(model, df, player_id, picked_date, seq_length=SEQ_LENGTH)
+        pred = predict_player_game(model, df, player_id, picked_date, seq_length=SEQ_LENGTH, feature_scaler=feature_scaler)
 
         return f"Predicted Fantasy Points for {player_name} on {date_str}: {pred:.2f}\n\nBased on last {SEQ_LENGTH} games:\n{games_info}"
     except ValueError as e:
