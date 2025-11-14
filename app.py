@@ -36,7 +36,7 @@ def gradio_predict(player_name, date_str):
         return f"Not enough historical data before {date_str}. Player has only {len(historical_data)} games before this date."
     
     last_5_games = historical_data.iloc[-SEQ_LENGTH:]
-    games_info = "\n".join([f"  {row['GAME_DATE']}: {row['PTS']} pts" for _, row in last_5_games.iterrows()])
+    games_info = "\n".join([f"  {row['GAME_DATE']}: {row['fantasy_points_dk']} pts" for _, row in last_5_games.iterrows()])
     
     try:
         picked_date = game_date
