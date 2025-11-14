@@ -4,7 +4,6 @@ import pandas as pd, re
 import numpy as np
 
 def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv", seq_length=5) -> Tuple[Optional[pd.DataFrame], Optional[np.ndarray], Optional[np.ndarray]]:
-    # Load data
     df = pd.read_csv(location)
     
     # Parse dates and sort -> need to clean to put into model
@@ -39,10 +38,19 @@ def preprocess_data(location="nba_fantasy_points_2024_25_dk.csv", seq_length=5) 
     df["team_idx"]   = df["TEAM_ABBR"].map(team2idx).fillna(0).astype(int)
     df["opp_idx"]    = df["OPP_ABBR"].map(team2idx).fillna(0).astype(int)
 
+
     # Clean up dataframe
     df = df[seq_cols + [target_col, "Player_ID", "team_idx", "opp_idx", "GAME_DATE"]]
+    # One-hot encode players team and the team they are playing against, did not improve model performance
+    # df_encoded = pd.get_dummies(df, columns=["team_idx","opp_idx"], dtype=int)
+   
+    df_encoded = df.copy()
+    
 
-    X, Y = create_sequences(df, seq_length=5, feature_cols=seq_cols, target_col=target_col)
+    feature_cols = [col for col in df_encoded.columns if col != target_col and col != "GAME_DATE" and col != "Player_ID"]
+
+    X, Y = create_sequences(df_encoded, seq_length=5, feature_cols=feature_cols, target_col=target_col)
+    print(f"Data preprocessing complete. Total games: {df_encoded.shape}, Total players: {df_encoded['Player_ID'].nunique()}")
     
     return df, X, Y
 
