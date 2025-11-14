@@ -2,6 +2,8 @@
 Rishi Ramesh, Henry Sheffield, Kelvin Zhou, Evan Hu
 
 ### app.py
+<b>This is our website that allows users to select any current NBA player and any date from the 2024-25 season to calculate the predicted Fantasy points for the player's next game after the given date.
+
 
 ### baseline_nba.ipynb
 <b>This is where we curated our datasets and calculated baselines.</b> The initial data set was able to be run in a single run through of the api. The second larger data set, around ~26,000 -> ~50,000 rows, needed to be split into two different runs of API calls which is what is currently implemented in the `ipynb`. 
