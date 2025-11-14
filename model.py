@@ -99,7 +99,7 @@ def predict_player_game(model, player_gw_df, player_id, game_date, seq_length=5,
         raise ValueError(f"Not enough data to predict for player ID {player_id}")
     
     # Get games before the target date
-    historical_data = player_data[player_data['GAME_DATE'] < game_date]
+    historical_data = player_data[player_data['GAME_DATE'] < game_date][feature_cols]
     
     if len(historical_data) < seq_length:
         raise ValueError(f"Not enough historical data before {game_date} for player ID {player_id}. "
@@ -115,37 +115,59 @@ def predict_player_game(model, player_gw_df, player_id, game_date, seq_length=5,
     pred = model.predict(seq, verbose=0)
     return pred[0, 0]
 
-def get_best_lineup(model, player_gw_df, my_players, game_date, budget=50000, seq_length=5, feature_cols=[
+def get_best_lineup(model, player_gw_df, my_players, game_date, seq_length=5, feature_cols=[
     'MIN','FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','AST','STL','BLK','TOV','PTS', 'home'], 
-    salary_col='SALARY',
-    feature_scaler: StandardScaler | None = None):
+    feature_scaler: StandardScaler | None = None, lineup_size=5):
     """
-    Predict fantasy points for all players and select the best lineup within the given budget.
+    Predict fantasy points for all players and select the best lineup.
+    
+    Args:
+        model: Trained Keras model
+        player_gw_df: DataFrame with player gameweek data
+        my_players: List of player names to choose from
+        game_date: Date for predictions (YYYY-MM-DD)
+        seq_length: Number of previous games to use
+        feature_cols: List of feature column names
+        feature_scaler: StandardScaler fitted on training data
+        lineup_size: Number of players to select for lineup
+    
+    Returns:
+        lineup: List of tuples (player_name, predicted_points)
+        total_points: Sum of predicted points for the lineup
     """
     team_predictions = {}
-    for player_id in my_players:
-        player_data = player_gw_df[player_gw_df['Player_ID'] == player_id].sort_values('GAME_DATE').reset_index(drop=True)
-        if len(player_data) < seq_length:
-            raise ValueError(f"Not enough data to predict for player ID {player_id}")
-        team_predictions[player_id] = predict_player_game(
-            model, player_gw_df, player_id=player_id, game_date=game_date, seq_length=seq_length,
-            feature_cols=feature_cols, feature_scaler=feature_scaler
-        )
     
-    player_salaries = player_gw_df[['Player_ID', salary_col]].drop_duplicates().set_index('Player_ID')
-    lineup = []
-    total_cost = 0
-    total_points = 0
+    for player_name in my_players:
+        try:
+            player_data = player_gw_df[player_gw_df['full_name'] == player_name].sort_values('GAME_DATE').reset_index(drop=True)
+            
+            if player_data.empty:
+                print(f"Warning: No data found for player {player_name}")
+                continue
+                
+            player_id = player_data['Player_ID'].iloc[0]
+            
+            if len(player_data) < seq_length:
+                print(f"Warning: Not enough data for {player_name} (need {seq_length} games, have {len(player_data)})")
+                continue
+            
+            # Pass feature_scaler to predict_player_game
+            predicted_points = predict_player_game(
+                model, player_gw_df[feature_cols + ["Player_ID", "GAME_DATE"]], player_id=player_id, game_date=game_date, 
+                seq_length=seq_length, feature_cols=feature_cols
+            )
+            team_predictions[player_name] = predicted_points
+            
+        except Exception as e:
+            print(f"Error predicting for {player_name}: {str(e)}")
+            continue
     
-    # fixed: iterate team_predictions, not undefined 'predictions'
-    for player_id, predicted_points in sorted(team_predictions.items(), key=lambda x: x[1], reverse=True):
-        player_salary = player_salaries.loc[player_id][salary_col]
-        if total_cost + player_salary <= budget:
-            lineup.append((player_id, predicted_points, player_salary))
-            total_cost += player_salary
-            total_points += predicted_points
+    # Sort by predicted points (descending) and select top lineup_size players
+    sorted_predictions = sorted(team_predictions.items(), key=lambda x: x[1], reverse=True)
+    lineup = sorted_predictions[:lineup_size]
+    total_points = sum(points for _, points in lineup)
     
-    return lineup, total_cost, total_points
+    return lineup, total_points
 
 
 if __name__ == "__main__":
